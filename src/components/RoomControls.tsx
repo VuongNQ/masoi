@@ -2,6 +2,8 @@ import { useState } from "react";
 import useRoomStore from "../store/roomStore";
 import { useWerewolfGameStore } from "../store/gameStore";
 import { PlayerStatus, type Player } from "../types/player";
+import { character, type Character } from "../types/charactor";
+import { CharacterIcon } from "../assets/icons";
 
 const RoomControls = () => {
   const [playerName, setPlayerName] = useState("");
@@ -50,7 +52,7 @@ const RoomControls = () => {
     const newPlayer: Player = {
       id: Math.random().toString(36).substr(2, 9),
       name: playerName.trim(),
-      score: 0,
+      character: character.VILLAGER, // Default character
       status: PlayerStatus.WAITING,
     };
 
@@ -117,8 +119,9 @@ const RoomControls = () => {
                 <div className="flex items-center space-x-2">
                   <span className="font-medium">{player.name}</span>
                   {playerCharacters[player.id] && (
-                    <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                      {playerCharacters[player.id]}
+                    <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded flex items-center space-x-1">
+                      <CharacterIcon character={playerCharacters[player.id]} size={16} />
+                      <span>{playerCharacters[player.id]}</span>
                     </span>
                   )}
                   <span className="text-xs text-gray-500">
@@ -126,7 +129,11 @@ const RoomControls = () => {
                   </span>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <span className="text-sm">Score: {player.score}</span>
+                  <span className="text-sm flex items-center space-x-1">
+                    <span>Character:</span>
+                    <CharacterIcon character={player.character} size={16} />
+                    <span>{player.character}</span>
+                  </span>
                   {gameStatus === "waiting" && (
                     <button
                       onClick={() => handleRemovePlayer(player.id)}
@@ -178,8 +185,11 @@ const RoomControls = () => {
             {Object.entries(characterDistribution).map(
               ([character, count]) =>
                 count > 0 && (
-                  <div key={character} className="flex justify-between">
-                    <span>{character.replace("_", " ")}</span>
+                  <div key={character} className="flex justify-between items-center">
+                    <span className="flex items-center space-x-1">
+                      <CharacterIcon character={character as Character} size={16} />
+                      <span>{character.replace("_", " ")}</span>
+                    </span>
                     <span className="font-medium">{count}</span>
                   </div>
                 )

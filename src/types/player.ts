@@ -1,9 +1,12 @@
+import type { Character } from "./charactor";
+
 export interface Player {
   id: string;
   name: string;
-  score: number;
+  character: Character;
   status: PlayerStatus;
 }
+
 
 export const PlayerStatus = {
   ACTIVE: 'ACTIVE',
