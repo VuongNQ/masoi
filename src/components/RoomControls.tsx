@@ -52,7 +52,7 @@ const RoomControls = () => {
     const newPlayer: Player = {
       id: Math.random().toString(36).substr(2, 9),
       name: playerName.trim(),
-      character: character.VILLAGER, // Default character
+      character: character.WARE_WOLF, // Default character
       status: PlayerStatus.WAITING,
     };
 

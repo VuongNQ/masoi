@@ -8,7 +8,7 @@ interface CharacterIconProps {
   className?: string;
 }
 
-const CharacterIcon: React.FC<CharacterIconProps> = ({ 
+const  CharacterIcon: React.FC<CharacterIconProps> = ({ 
   character, 
   size = 24, 
   className = "" 
