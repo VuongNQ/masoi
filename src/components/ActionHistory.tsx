@@ -9,7 +9,17 @@ const ActionHistory = () => {
     return playersData.players.find(p => p.id === playerId)?.name || 'Unknown';
   };
 
-  const formatActionDescription = (action: any) => {
+  type Action = {
+    id: string;
+    playerId: string;
+    targetId?: string;
+    character: string;
+    actionType: string;
+    success?: boolean;
+    blocked?: boolean;
+  };
+
+  const formatActionDescription = (action: Action) => {
     const actorName = getPlayerName(action.playerId);
     const targetName = action.targetId ? getPlayerName(action.targetId) : '';
     
