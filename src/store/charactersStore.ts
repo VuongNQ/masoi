@@ -1,3 +1,7 @@
+
+import { create } from 'zustand';
+import type { Character } from '../types/charactor';
+
 /**
  * not count seer player in total players
  * base on define character type from src/types/charactor.ts
@@ -16,3 +20,18 @@
  */
 
 
+
+interface CharactersStore {
+  playerCharacters: Record<string, Character>;
+  
+  // Actions
+  setPlayerCharacters: (characters: Record<string, Character>) => void;
+  resetCharacters: () => void;
+}
+
+export const useCharactersStore = create<CharactersStore>((set) => ({
+  playerCharacters: {},
+
+  setPlayerCharacters: (playerCharacters) => set({ playerCharacters }),
+  resetCharacters: () => set({ playerCharacters: {} }),
+}));

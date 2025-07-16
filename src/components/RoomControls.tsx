@@ -1,140 +1,156 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
+import { useGameState } from "../hooks/useGameState";
+import { useCharactersStore } from "../store/charactersStore";
+import { usePlayersStore } from "../store/playersStore";
 import useRoomStore from "../store/roomStore";
-import { useWerewolfGameStore } from "../store/gameStore";
-import { PlayerStatus, type Player } from "../types/player";
-import { character, type Character } from "../types/charactor";
-import { CharacterIcon } from "../assets/icons";
+import {
+  assignCharactersToPlayers,
+  resetGame,
+  startGame,
+} from "../utils/gameActions";
+import { createPlayer } from "../utils/gameLogic";
+// import GameBoard from "./GameBoard";
 
 const RoomControls = () => {
   const [playerName, setPlayerName] = useState("");
 
-  // Room store
-  const {
-    roomId,
-    maxPlayers,
-    // currentPlayers,
-    addPlayer: addPlayerToRoom,
-    removePlayer: removePlayerFromRoom,
-  } = useRoomStore((state) => state);
+  const gameState = useGameState();
 
-  // Game store
-  const {
-    players,
-    gameStatus,
-    playerCharacters,
-    alivePlayers,
-    deadPlayers,
-    addPlayer: addPlayerToGame,
-    removePlayer: removePlayerFromGame,
-    assignCharacters,
-    startGame,
-    resetGame,
-    getCharacterDistribution,
-    checkWinCondition,
-  } = useWerewolfGameStore((state) => state);
+  const playersData = usePlayersStore((state) => state);
 
-  const handleAddPlayer = () => {
+  const charactersData = useCharactersStore((state) => state);
+
+  const roomStore = useRoomStore((state) => ({
+    roomId: state.roomId,
+    addPlayer: state.addPlayer,
+    removePlayer: state.removePlayer,
+  }));
+
+  const handleAddPlayer = useCallback(() => {
     if (!playerName.trim()) {
       alert("Please enter a player name");
       return;
     }
 
-    if (players.length >= maxPlayers) {
+    if (playersData.players.length >= gameState.maxPlayers) {
       alert("Maximum players reached");
       return;
     }
 
-    if (players.some((p) => p.name === playerName.trim())) {
+    if (playersData.players.some((p) => p.name === playerName.trim())) {
       alert("Player name already exists");
       return;
     }
 
-    const newPlayer: Player = {
-      id: Math.random().toString(36).substr(2, 9),
-      name: playerName.trim(),
-      character: character.WARE_WOLF, // Default character
-      status: PlayerStatus.WAITING,
-    };
-
-    // Add to both stores
-    addPlayerToRoom(newPlayer.id);
-    addPlayerToGame(newPlayer);
+    const newPlayer = createPlayer(playerName);
+    roomStore.addPlayer(newPlayer.id);
+    playersData.addPlayer(newPlayer);
     setPlayerName("");
-  };
+  }, [playerName, playersData, gameState.maxPlayers, roomStore]);
 
-  const handleRemovePlayer = (playerId: string) => {
-    removePlayerFromRoom(playerId);
-    removePlayerFromGame(playerId);
-  };
+  const handleRemovePlayer = useCallback(
+    (playerId: string) => {
+      roomStore.removePlayer(playerId);
+      playersData.removePlayer(playerId);
+    },
+    [roomStore, playersData]
+  );
 
-  const handleStartGame = () => {
-    if (players.length < 5) {
+  const handleStartGame = useCallback(() => {
+    if (!gameState.canStartGame) {
       alert("Need at least 5 players to start");
       return;
     }
 
-    assignCharacters();
-    startGame();
-  };
+    assignCharactersToPlayers();
+    const success = startGame();
 
-  const handleResetGame = () => {
-    resetGame();
-  };
+    if (!success) {
+      alert("Failed to start game");
+    }
+  }, [gameState.canStartGame]);
 
-  const winCondition = checkWinCondition();
-  const characterDistribution = getCharacterDistribution(players.length);
+  // If game is active, show GameBoard
+  if (gameState.gameStatus !== "waiting") {
+    return (
+      <div className="game-container">
+        <div className="game-header p-4 bg-gray-100 border-b">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold">Room ID: {roomStore.roomId}</h2>
+              <p className="text-sm text-gray-600">
+                Game Status: {gameState.gameStatus}
+              </p>
+            </div>
+            <div className="flex items-center space-x-4">
+              {gameState.winCondition && (
+                <p className="text-lg font-bold text-green-600">
+                  Winner:{" "}
+                  {gameState.winCondition === "werewolf"
+                    ? "Werewolves"
+                    : "Villagers"}
+                  !
+                </p>
+              )}
+              <button
+                onClick={resetGame}
+                className="px-4 py-2 bg-red-500 text-white rounded-md"
+              >
+                Reset Game
+              </button>
+            </div>
+          </div>
 
+          <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <strong>Alive Players:</strong> {playersData.alivePlayers.length}
+            </div>
+            <div>
+              <strong>Dead Players:</strong> {playersData.deadPlayers.length}
+            </div>
+          </div>
+        </div>
+        {/* <GameBoard /> */}
+      </div>
+    );
+  }
+
+  // Room setup UI
   return (
     <div className="room-controls p-4 border rounded-lg bg-gray-50">
       <div className="mb-4">
-        <h2 className="text-xl font-bold">Room ID: {roomId || "No Room"}</h2>
-        <p className="text-sm text-gray-600">Game Status: {gameStatus}</p>
-        {winCondition && (
-          <p className="text-lg font-bold text-green-600">
-            Winner: {winCondition === "werewolf" ? "Werewolves" : "Villagers"}!
-          </p>
-        )}
+        <h2 className="text-xl font-bold">
+          Room ID: {roomStore.roomId || "No Room"}
+        </h2>
+        <p className="text-sm text-gray-600">
+          Game Status: {gameState.gameStatus}
+        </p>
       </div>
 
       <div className="mb-4">
         <h3 className="text-lg font-semibold mb-2">
-          Players ({players.length}/{maxPlayers}):
+          Players ({playersData.players.length}/{gameState.maxPlayers}):
         </h3>
 
-        {players.length === 0 ? (
+        {playersData.players.length === 0 ? (
           <p className="text-gray-500">No players yet</p>
         ) : (
           <div className="space-y-2">
-            {players.map((player) => (
+            {playersData.players.map((player) => (
               <div
                 key={player.id}
-                className={`flex items-center justify-between p-2 rounded ${
-                  deadPlayers.includes(player.id)
-                    ? "bg-red-100 text-red-700"
-                    : alivePlayers.includes(player.id)
-                    ? "bg-green-100 text-green-700"
-                    : "bg-gray-100"
-                }`}
+                className="flex items-center justify-between p-2 rounded bg-gray-100"
               >
                 <div className="flex items-center space-x-2">
                   <span className="font-medium">{player.name}</span>
-                  {playerCharacters[player.id] && (
-                    <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded flex items-center space-x-1">
-                      <CharacterIcon character={playerCharacters[player.id]} size={16} />
-                      <span>{playerCharacters[player.id]}</span>
+                  {charactersData.playerCharacters[player.id] && (
+                    <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                      {charactersData.playerCharacters[player.id]}
                     </span>
                   )}
-                  <span className="text-xs text-gray-500">
-                    ({player.status})
-                  </span>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <span className="text-sm flex items-center space-x-1">
-                    <span>Character:</span>
-                    <CharacterIcon character={player.character} size={16} />
-                    <span>{player.character}</span>
-                  </span>
-                  {gameStatus === "waiting" && (
+                  {gameState.gameStatus === "waiting" && (
                     <button
                       onClick={() => handleRemovePlayer(player.id)}
                       className="text-red-500 hover:text-red-700 text-sm"
@@ -150,7 +166,7 @@ const RoomControls = () => {
       </div>
 
       {/* Add Player Section */}
-      {gameStatus === "waiting" && (
+      {gameState.gameStatus === "waiting" && (
         <div className="mb-4">
           <div className="flex space-x-2">
             <input
@@ -158,16 +174,12 @@ const RoomControls = () => {
               placeholder="Enter player name"
               value={playerName}
               onChange={(e) => setPlayerName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  handleAddPlayer();
-                }
-              }}
+              onKeyDown={(e) => e.key === "Enter" && handleAddPlayer()}
               className="flex-1 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             <button
               onClick={handleAddPlayer}
-              className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="px-4 py-2 bg-blue-500 text-white rounded-md"
             >
               Add Player
             </button>
@@ -175,68 +187,19 @@ const RoomControls = () => {
         </div>
       )}
 
-      {/* Character Distribution Preview */}
-      {players.length >= 5 && (
-        <div className="mb-4 p-3 bg-blue-50 rounded-lg">
-          <h4 className="font-semibold text-blue-800 mb-2">
-            Character Distribution:
-          </h4>
-          <div className="grid grid-cols-2 gap-2 text-sm">
-            {Object.entries(characterDistribution).map(
-              ([character, count]) =>
-                count > 0 && (
-                  <div key={character} className="flex justify-between items-center">
-                    <span className="flex items-center space-x-1">
-                      <CharacterIcon character={character as Character} size={16} />
-                      <span>{character.replace("_", " ")}</span>
-                    </span>
-                    <span className="font-medium">{count}</span>
-                  </div>
-                )
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Game Control Buttons */}
-      <div className="flex space-x-2">
-        {gameStatus === "waiting" && (
-          <button
-            onClick={handleStartGame}
-            disabled={players.length < 5}
-            className={`px-4 py-2 rounded-md font-medium ${
-              players.length < 5
-                ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                : "bg-green-500 text-white hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500"
-            }`}
-          >
-            Start Game
-          </button>
-        )}
-
-        {gameStatus !== "waiting" && (
-          <button
-            onClick={handleResetGame}
-            className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500"
-          >
-            Reset Game
-          </button>
-        )}
-      </div>
-
-      {/* Game Status Info */}
-      {gameStatus !== "waiting" && (
-        <div className="mt-4 p-3 bg-gray-100 rounded-lg">
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <strong>Alive Players:</strong> {alivePlayers.length}
-            </div>
-            <div>
-              <strong>Dead Players:</strong> {deadPlayers.length}
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Start Game Button */}
+      <button
+        onClick={handleStartGame}
+        disabled={!gameState.canStartGame}
+        className={`w-full px-4 py-2 rounded-md font-medium ${
+          !gameState.canStartGame
+            ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+            : "bg-green-500 text-white hover:bg-green-600"
+        }`}
+      >
+        Start Game ({playersData.players.length}/{gameState.minPlayers}{" "}
+        minimum)
+      </button>
     </div>
   );
 };
